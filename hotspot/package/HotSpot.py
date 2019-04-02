@@ -317,7 +317,7 @@ class HotSpot():
             if elementsSet in state._elements:
                 ps = state._elements[elementsSet]
             else:
-                _, value = self._KPIPoint.get_descendant_elements_coms2(elementsSet)
+                _, value = self._KPIPoint.get_descendant_elements_coms(elementsSet)
                 print('eval ', _, value)
                 ps = self.cal_potential_scores(elementsSet, value)
             print('Evaluation', ps)
@@ -368,7 +368,7 @@ if __name__ == "__main__":
     hotSpot = HotSpot(kPoint, 2, 0.9, 100)
     rootCauseSet = hotSpot.find_root_cause_set()
     print(rootCauseSet)
-    # _, value = kPoint.get_descendant_elements_coms2((('b2',), ('b1',),))
-    # print(value)
-    # score = hotSpot.cal_potential_scores((('b2',), ('b1',),), value)
-    # print(score)
+    _, value = kPoint.get_descendant_elements_coms((('b2',), ('b1',),))
+    print(value)
+    score = hotSpot.cal_potential_scores((('b2',), ('b1',),), value)
+    print(score)
