@@ -125,18 +125,6 @@ class KPIPoint:
     # coms: combinations of elements
     def get_descendant_elements_coms(self, coms):
         elements = {}
-        value = [0, 0]
-        for leaf in self._leaf:
-            for ele in coms:
-                inter = list(set(ele).intersection(set(leaf)))
-                if len(inter) == len(ele):
-                    elements[leaf] = self._leaf[leaf]
-                    value[0] += elements[leaf][0]
-                    value[1] += elements[leaf][1]
-        return elements, value
-
-    def get_descendant_elements_coms2(self, coms):
-        elements = {}
         value = {}
         for leaf in self._leaf:
             for ele in coms:
@@ -316,7 +304,7 @@ class KPITest:
         print('cuboid (\'b\',) elements: ', kPoint.get_elements_in_cuboid(('b',)))
         print('cuboid (\'a\',\'b\') elements: ', kPoint.get_elements_in_cuboid(('a', 'b')))
         print('cuboid (\'a\',) elements combinations are: ', kPoint.get_elements_coms_in_cuboid(('a',)))
-        print('cuboid (\'b\',) elements combinations are: ', kPoint.get_elements_coms_in_cuboid(('a',)))
+        print('cuboid (\'b\',) elements combinations are: ', kPoint.get_elements_coms_in_cuboid(('b',)))
         print('cuboid (\'a\',\'b\') elements combinations are: ', kPoint.get_elements_coms_in_cuboid(('a', 'b')))
         print('attrs in layer %d' % 1, kPoint.get_elements_set_by_layer(1))
         print('attrs in layer %d' % 2, kPoint.get_elements_set_by_layer(2))
