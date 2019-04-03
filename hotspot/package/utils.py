@@ -65,11 +65,44 @@ class KPIPoint:
         elements_by_cuboid = {}
         coms = itertools.combinations(self._attribute_names, layer)
         for com in coms:
+            res[com] = {}
             elements = self.get_elements_in_cuboid(com)
             elements_by_cuboid[com] = elements
             for ele in elements:
                 _, value = self.get_descendant_elements_ele(ele)
-                res[(ele,)] = value
+                res[com][(ele,)] = value
+        return res
+        # get the elements set of idth layer
+        # layer: the ith layer
+
+    def get_elements_set_by_layer_with_prune(self, layer, parentSet):
+        if len(parentSet) == 0:
+            return self.get_elements_set_by_layer(layer)
+        if self._attribute_names == []:
+            self.get_attribute_names()
+        # get the idth element combinations set
+        res = {}
+        # elements = self.get_elements_in_cuboid(layer)
+        elements_by_cuboid = {}
+        coms = itertools.combinations(self._attribute_names, layer)
+        for com in coms:
+            res[com] = {}
+            elements = self.get_elements_in_cuboid(com)
+            elements_by_cuboid[com] = elements
+            for ele in elements:
+                # prune
+                flag = False
+                for s in parentSet:
+                    tmp = list(set(s).intersection(set(ele)))
+                    if len(tmp) != 0:
+                        flag = True
+                        break
+
+                if not flag:
+                    print('prune element', ele)
+                    continue
+                _, value = self.get_descendant_elements_ele(ele)
+                res[com][(ele,)] = value
         return res
 
     # get all the combinations of given cuboid
@@ -80,25 +113,31 @@ class KPIPoint:
         coms_elements_by_cuboid = {}
         coms = itertools.combinations(self._attribute_names, layer)
         for com in coms:
+            res[com] = {}
             coms_elements = self.get_elements_coms_in_cuboid(com)
             coms_elements_by_cuboid[com] = coms_elements
             for ele_com in coms_elements:
                 _, value = self.get_descendant_elements_coms(ele_com)
-                res[ele_com] = value
+                res[com][ele_com] = value
         return res
 
     # get the descendant element
     # coms: combinations of elements
     def get_descendant_elements_coms(self, coms):
         elements = {}
-        value = [0, 0]
+        value = {}
         for leaf in self._leaf:
             for ele in coms:
+                if (ele,) not in value:
+                    value[(ele,)] = [0, 0]
+                tmp = [0, 0]
                 inter = list(set(ele).intersection(set(leaf)))
                 if len(inter) == len(ele):
                     elements[leaf] = self._leaf[leaf]
-                    value[0] += elements[leaf][0]
-                    value[1] += elements[leaf][1]
+                    tmp[0] += elements[leaf][0]
+                    tmp[1] += elements[leaf][1]
+                value[(ele,)][0] += tmp[0]
+                value[(ele,)][1] += tmp[1]
         return elements, value
 
     # get the descendant element
@@ -265,7 +304,7 @@ class KPITest:
         print('cuboid (\'b\',) elements: ', kPoint.get_elements_in_cuboid(('b',)))
         print('cuboid (\'a\',\'b\') elements: ', kPoint.get_elements_in_cuboid(('a', 'b')))
         print('cuboid (\'a\',) elements combinations are: ', kPoint.get_elements_coms_in_cuboid(('a',)))
-        print('cuboid (\'b\',) elements combinations are: ', kPoint.get_elements_coms_in_cuboid(('a',)))
+        print('cuboid (\'b\',) elements combinations are: ', kPoint.get_elements_coms_in_cuboid(('b',)))
         print('cuboid (\'a\',\'b\') elements combinations are: ', kPoint.get_elements_coms_in_cuboid(('a', 'b')))
         print('attrs in layer %d' % 1, kPoint.get_elements_set_by_layer(1))
         print('attrs in layer %d' % 2, kPoint.get_elements_set_by_layer(2))
@@ -280,12 +319,12 @@ class KPITest:
                                   ('a1', 'b3'): [20, 0],
                                   ('a2', 'b1'): [30, 0],
                                   ('a2', 'b2'): [40, 0]})
-        kPoint2 = KPIPoint({'a': ['a1', 'a2'], 'b': ['b1', 'b2']},
+        kPoint2 = KPIPoint({'a': ['a1', 'a2'], 'b': ['b1', 'b2', 'b3']},
                            1001, {('a1', 'b1'): [20, 0],
-                                  ('a1', 'b2'): [30, 0],
+                                      ('a1', 'b2'): [30, 0],
                                   ('a2', 'b1'): [40, 0],
                                   ('a2', 'b2'): [50, 0]})
-        kSet = KPISet({'a': ['a1', 'a2'], 'b': ['b1', 'b2']}, {1000: kPoint1, 1001: kPoint2})
+        kSet = KPISet({'a': ['a1', 'a2'], 'b': ['b1', 'b2', 'b3']}, {1000: kPoint1, 1001: kPoint2})
         print('KPISet Test')
         kSet.test()
         print('(a1)\'s descendant elements are ', kSet.get_descendant_elements_coms(1000, (('a1',),)))
