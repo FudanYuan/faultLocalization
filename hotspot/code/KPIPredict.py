@@ -34,13 +34,13 @@ def visualize(ts1, ts2):
 
 # 加载训练集
 kSet = KPISet({}, {})
-kSet.load('KPISet')
+kSet.load('../result/metadata/KPISet')
 # kSet.test()
 ts = kSet.get_ts_ele(ele=('i38', 'e10', 'c1', 'p10', 'l3'), t1=1535731200, t2=1536940500, delta=300 * 288)
 
 # 加载测试集
 kSet_test = KPISet({}, {})
-kSet_test.load('KPISetTest')
+kSet_test.load('../result/metadata/KPISetTest')
 # kSet_test.test()
 ts_test = kSet_test.get_ts_ele(ele=('i38', 'e10', 'c1', 'p10', 'l3'), t1=1536940800, t2=1538150100, delta=300 * 288)
 
@@ -66,4 +66,4 @@ ts_test = kSet_test.get_ts_ele(ele=('i38', 'e10', 'c1', 'p10', 'l3'), t1=1536940
 visualize(ts_test['true'], ts_test['pred'])
 
 #### 保存数据
-kSet_test.save('KPISetTestPredict2')
+kSet_test.save('../result/metadata/KPISetTestPredict')

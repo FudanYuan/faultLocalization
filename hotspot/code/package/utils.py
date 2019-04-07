@@ -398,10 +398,10 @@ class KPITest:
         print('timestamp: %d, attrs in layer %d' % (1000, 2), kSet.get_elements_set_by_layer(1000, 2))
         print('time series of leaf (\'a1\', \'b1\')', kSet.get_ts_leaf(1000, 1011, 1, ('a1', 'b1')))
         print('time series of not leaf (\'a1\')', kSet.get_ts_not_leaf(1000, 1011, 1, ['a1']))
-        kSet.save('kSet')
+        kSet.save('../../result/metadata/kSet')
 
         kSet2 = KPISet({}, {})
-        kSet2.load('kSet')
+        kSet2.load('../../result/metadata/kSet')
         kSet2.get_elements_set_by_layer(1000, 1)
         kSet2.get_elements_set_by_layer(1000, 2)
         kSet2.get_descendant_elements_coms(1001, ('b1', 'b3',))
