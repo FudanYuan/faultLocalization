@@ -1,6 +1,7 @@
 # coding: utf-8
 import itertools
 import pickle
+import numpy as np
 
 '''
 笛卡尔积
@@ -61,20 +62,22 @@ class KPIPoint:
             self.get_attribute_names()
         # get the idth element combinations set
         res = {}
-        # elements = self.get_elements_in_cuboid(layer)
-        elements_by_cuboid = {}
-        coms = itertools.combinations(self._attribute_names, layer)
+        coms = itertools.combinations(range(len(self._attribute_names)), layer)
+        leaves = self._leaf
         for com in coms:
-            res[com] = {}
-            elements = self.get_elements_in_cuboid(com)
-            elements_by_cuboid[com] = elements
-            for ele in elements:
-                _, value = self.get_descendant_elements_ele(ele)
-                res[com][(ele,)] = value
+            attr_com = tuple(np.array(self._attribute_names)[np.array(com)])
+            res[attr_com] = {}
+            for leaf in leaves:
+                key = tuple(np.array(leaf)[np.array(com)])
+                value = leaves[leaf]
+                if (key,) not in res[attr_com]:
+                    res[attr_com][(key,)] = value
+                else:
+                    res[attr_com][(key,)] = np.sum([res[attr_com][(key,)], value], axis=0).tolist()
         return res
-        # get the elements set of idth layer
-        # layer: the ith layer
 
+    # get the elements set of idth layer
+    # layer: the ith layer
     def get_elements_set_by_layer_with_prune(self, layer, parentSet):
         if len(parentSet) == 0:
             return self.get_elements_set_by_layer(layer)
@@ -82,14 +85,71 @@ class KPIPoint:
             self.get_attribute_names()
         # get the idth element combinations set
         res = {}
-        # elements = self.get_elements_in_cuboid(layer)
-        elements_by_cuboid = {}
+        coms = itertools.combinations(range(len(self._attribute_names)), layer)
+        leaves = self._leaf
+        remain_counter = 0
+        for com in coms:
+            attr_com = tuple(np.array(self._attribute_names)[np.array(com)])
+            res[attr_com] = {}
+            for leaf in leaves:
+                flag = False
+                for s in parentSet:
+                    tmp = list(set(s).intersection(set(leaf)))
+                    if len(tmp) != 0:
+                        flag = True
+                        break
+
+                # prune
+                if not flag:
+                    # print('prune element', leaf)
+                    continue
+
+                key = tuple(np.array(leaf)[np.array(com)])
+                value = leaves[leaf]
+
+                if (key,) not in res[attr_com]:
+                    res[attr_com][(key,)] = value
+                else:
+                    res[attr_com][(key,)] = np.sum([res[attr_com][(key,)], value], axis=0).tolist()
+                remain_counter += 1
+        return res
+
+    # get the elements set of idth layer
+    # layer: the ith layer
+    def get_elements_set_by_layer2(self, layer):
+        if self._attribute_names == []:
+            self.get_attribute_names()
+        # get the idth element combinations set
+        res = {}
         coms = itertools.combinations(self._attribute_names, layer)
         for com in coms:
             res[com] = {}
             elements = self.get_elements_in_cuboid(com)
-            elements_by_cuboid[com] = elements
             for ele in elements:
+                _, value = self.get_descendant_elements_ele(ele)
+                if value == [0, 0]: # if there exists no ele in the leaf elements, continue
+                    continue
+                res[com][(ele,)] = value
+        return res
+
+    # get the elements set of idth layer
+    # layer: the ith layer
+    def get_elements_set_by_layer_with_prune2(self, layer, parentSet):
+        if len(parentSet) == 0:
+            return self.get_elements_set_by_layer2(layer)
+        if self._attribute_names == []:
+            self.get_attribute_names()
+        # get the idth element combinations set
+        res = {}
+        coms = itertools.combinations(self._attribute_names, layer)
+        total_counter = 0
+        remain_counter = 0
+        for com in coms:
+            print('com: ', com)
+            res[com] = {}
+            elements = self.get_elements_in_cuboid(com)
+            for ele in elements:
+                total_counter += 1
                 # prune
                 flag = False
                 for s in parentSet:
@@ -99,10 +159,16 @@ class KPIPoint:
                         break
 
                 if not flag:
-                    print('prune element', ele)
+                    # print('prune element', ele)
                     continue
+
                 _, value = self.get_descendant_elements_ele(ele)
+                if value == [0, 0]: # if there exists no ele in the leaf elements, continue
+                    continue
                 res[com][(ele,)] = value
+                remain_counter += 1
+        prune_rate = (1 - remain_counter / total_counter) * 100
+        print('prune rate: %f%%' % prune_rate)
         return res
 
     # get all the combinations of given cuboid
@@ -222,19 +288,19 @@ class KPISet:
         return self._KPIPoints[t].get_descendant_elements_ele(ele)
 
     # get the time series of a element
-    def get_ts_ele(self, t1, t2, ele):
+    def get_ts_ele(self, t1, t2, delta, ele):
         if len(ele) == len(self._attribute_names):
-            return self.get_ts_leaf(t1, t2, ele)
+            return self.get_ts_leaf(t1, t2, delta, ele)
         else:
-            return self.get_ts_not_leaf(t1, t2, ele)
+            return self.get_ts_not_leaf(t1, t2, delta, ele)
 
     # get the time serises of a leaf element
-    def get_ts_leaf(self, t1, t2, leaf):
+    def get_ts_leaf(self, t1, t2, delta, leaf):
         ts_true = []
         ts_pred = []
-        for t in range(t1, t2 + 1):
+        for t in range(t1, t2 + delta, delta):
             if t not in self._KPIPoints:
-                print('error', '%d not exists' % t)
+                # print('error', '%d not exists' % t)
                 break
             if leaf not in self._KPIPoints[t]._leaf:
                 ts_true.append(0)
@@ -248,12 +314,12 @@ class KPISet:
         return ts
 
     # get the time serises of a not-leaf element
-    def get_ts_not_leaf(self, t1, t2, ele):
+    def get_ts_not_leaf(self, t1, t2, delta, ele):
         ts_true = []
         ts_pred = []
-        for t in range(t1, t2 + 1):
+        for t in range(t1, t2 + delta, delta):
             if t not in self._KPIPoints:
-                print('error', '%d not exists' % t)
+                # print('error', '%d not exists' % t)
                 break
             _, value = self.get_descendant_elements_ele(t, ele)
             ts_true.append(value[0])
@@ -330,8 +396,8 @@ class KPITest:
         print('(a1)\'s descendant elements are ', kSet.get_descendant_elements_coms(1000, (('a1',),)))
         print('timestamp: %d, attrs in layer %d' % (1000, 1), kSet.get_elements_set_by_layer(1000, 1))
         print('timestamp: %d, attrs in layer %d' % (1000, 2), kSet.get_elements_set_by_layer(1000, 2))
-        print('time series of leaf (\'a1\', \'b1\')', kSet.get_ts_leaf(1000, 1011, ('a1', 'b1')))
-        print('time series of not leaf (\'a1\')', kSet.get_ts_not_leaf(1000, 1011, ['a1']))
+        print('time series of leaf (\'a1\', \'b1\')', kSet.get_ts_leaf(1000, 1011, 1, ('a1', 'b1')))
+        print('time series of not leaf (\'a1\')', kSet.get_ts_not_leaf(1000, 1011, 1, ['a1']))
         kSet.save('kSet')
 
         kSet2 = KPISet({}, {})
@@ -339,6 +405,6 @@ class KPITest:
         kSet2.get_elements_set_by_layer(1000, 1)
         kSet2.get_elements_set_by_layer(1000, 2)
         kSet2.get_descendant_elements_coms(1001, ('b1', 'b3',))
-        kSet2.get_ts_leaf(1000, 1011, ('a1', 'b2'))
-        kSet2.get_ts_not_leaf(1000, 1011, ['a1'])
+        kSet2.get_ts_leaf(1000, 1011, 1, ('a1', 'b2'))
+        kSet2.get_ts_not_leaf(1000, 1011, 1, ['a1'])
         print('\n')
