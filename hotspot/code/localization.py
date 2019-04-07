@@ -13,7 +13,7 @@ from package.HotSpot import HotSpot
 if __name__ == "__main__":
     #### 加载数据集
     kSet_pred = KPISet({}, {})
-    kSet_pred.load('KPISetTestPredict')
+    kSet_pred.load('../result/metadata/KPISetTestPredict')
     # kSet.test()
     #### 读取异常时间戳
     outlier = pd.read_csv('../Anomalytime_data_test1.csv')
@@ -45,4 +45,4 @@ if __name__ == "__main__":
     eTime = time.time()
     print('runtime %fs' % (eTime - sTime))
     res = pd.DataFrame(res)
-    res.to_csv('../result/result.csv', index=False)
+    res.to_csv('../result/submit.csv', index=False)
