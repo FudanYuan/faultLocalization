@@ -127,7 +127,7 @@ class KPIPoint:
             elements = self.get_elements_in_cuboid(com)
             for ele in elements:
                 _, value = self.get_descendant_elements_ele(ele)
-                if value == [0, 0]: # if there exists no ele in the leaf elements, continue
+                if value == [0, 0]:  # if there exists no ele in the leaf elements, continue
                     continue
                 res[com][(ele,)] = value
         return res
@@ -163,7 +163,7 @@ class KPIPoint:
                     continue
 
                 _, value = self.get_descendant_elements_ele(ele)
-                if value == [0, 0]: # if there exists no ele in the leaf elements, continue
+                if value == [0, 0]:  # if there exists no ele in the leaf elements, continue
                     continue
                 res[com][(ele,)] = value
                 remain_counter += 1
@@ -387,7 +387,7 @@ class KPITest:
                                   ('a2', 'b2'): [40, 0]})
         kPoint2 = KPIPoint({'a': ['a1', 'a2'], 'b': ['b1', 'b2', 'b3']},
                            1001, {('a1', 'b1'): [20, 0],
-                                      ('a1', 'b2'): [30, 0],
+                                  ('a1', 'b2'): [30, 0],
                                   ('a2', 'b1'): [40, 0],
                                   ('a2', 'b2'): [50, 0]})
         kSet = KPISet({'a': ['a1', 'a2'], 'b': ['b1', 'b2', 'b3']}, {1000: kPoint1, 1001: kPoint2})
@@ -408,3 +408,43 @@ class KPITest:
         kSet2.get_ts_leaf(1000, 1011, 1, ('a1', 'b2'))
         kSet2.get_ts_not_leaf(1000, 1011, 1, ['a1'])
         print('\n')
+
+
+"""
+Data Transformer
+"""
+from tqdm import tqdm
+import pandas as pd
+class Transformer:
+    def transformKPIData2KPIPoint(self, filePath, timestamp):
+        data = pd.read_csv(filePath + str(timestamp) + '.csv', header=None, names=['i', 'e', 'c', 'p', 'l', 'KPI'])
+        data = data.drop(data[data.values == 'unknown'].index, axis=0).reset_index(drop=True)
+        data = data[data['KPI'] != 0].reset_index(drop=True)
+        # 获取属性值
+        attribute_list = {}
+        attrs = list(data.columns)[:-1]
+        for attr in attrs:
+            attribute_list[attr] = sorted(data[attr].unique().tolist())
+        # 获取叶子元素
+        # leaf = dict(zip(zip(data['i'], data['e'], data['c'], data['p'], data['l']), data['KPI'])) # 主键相同时会覆盖
+        leaf = {}
+        for i in range(len(data)):
+            element = tuple(data.loc[i][:-1])
+            if element not in leaf:
+                leaf[element] = [0, 0]
+            leaf[element] = [leaf[element][0] + data.loc[i][-1], 0]
+        return attribute_list, leaf
+
+    def transformKPIData2KPISet(self, filePath, timestamp_start, timestamp_end, timestamp_interval):
+        kPoints = {}
+        attr_list_all = {}
+        for ts in tqdm(range(timestamp_start, timestamp_end + timestamp_interval, timestamp_interval)):
+            ts_file = ts * 1000
+            attribute_list, leaf = self.transformKPIData2KPIPoint(filePath, ts_file)
+            kPoints[ts] = KPIPoint(attribute_list, ts, leaf)
+            for attr in attribute_list:
+                if attr not in attr_list_all:
+                    attr_list_all[attr] = []
+                attr_list_all[attr] = sorted(list(set(attr_list_all[attr]).union(set(attribute_list[attr]))))
+        kSet = KPISet(attr_list_all, kPoints)
+        return kSet
