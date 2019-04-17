@@ -1,4 +1,4 @@
-# coding: utf-8
+## coding: utf-8
 import pandas as pd
 import numpy as np
 import time
@@ -46,7 +46,7 @@ def valid():
 def test():
     #### 加载数据集
     kSet_pred = KPISet({}, {})
-    kSet_pred.load('../result/metadata/KPISetTestPredict')
+    kSet_pred.load('../result/metadata/KPISetTestPredict2')
     # kSet_pred.test()
     #### 读取异常时间戳
     outlier = pd.read_csv('../Anomalytime_data_test1.csv')
@@ -70,12 +70,11 @@ def test():
         for ele in rootCauseSet[0][0]:
             sets.append("&".join(ele))
         res['set'].append(';'.join(sets))
-        break
     eTime = time.time()
     print('runtime %fs' % (eTime - sTime))
     res = pd.DataFrame(res)
-    res.to_csv('../result/submit%s. csv' % time.strftime("%Y%m%d%H%M%S", time.localtime(eTime)), index=False)
+    res.to_csv('../result/submit%s.csv' % time.strftime("%Y%m%d%H%M%S", time.localtime(eTime)), index=False)
 
 if __name__ == "__main__":
-    valid()
-    # test()
+    # valid()
+    test()

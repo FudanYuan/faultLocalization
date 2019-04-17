@@ -2,6 +2,8 @@
 import itertools
 import pickle
 import numpy as np
+import os
+from sklearn.externals import joblib
 
 '''
 笛卡尔积
@@ -448,3 +450,251 @@ class Transformer:
                 attr_list_all[attr] = sorted(list(set(attr_list_all[attr]).union(set(attribute_list[attr]))))
         kSet = KPISet(attr_list_all, kPoints)
         return kSet
+
+
+"""
+Data Explore
+"""
+class Explore:
+    # 滚动统计
+    def rolling_statistics(self, timeseries, timewindows=10):
+        # Determing rolling statistics
+        rolmean = timeseries.rolling(timewindows).mean()
+        rolstd = timeseries.rolling(timewindows).std()
+        allmean = [np.mean(timeseries)] * len(timeseries)
+        allstd = [np.std(timeseries)] * len(timeseries)
+
+        # Plot rolling statistics:
+        plt.figure(figsize=(40, 10))
+        orig = plt.plot(timeseries, color='blue', label='Original')
+
+        mean = plt.plot(rolmean, color='red', label='Rolling Mean')
+        std = plt.plot(rolstd, color='black', label='Rolling Std')
+        mean_total = plt.plot(allmean, color='green', label='Total Mean')
+        std_total = plt.plot(allstd, color='yellow', label='Total Std')
+        plt.legend(loc='best')
+        plt.title('Rolling Mean & Standard Deviation')
+        plt.show(block=False)
+
+    '''
+    # 返回值含义
+    * adf_test的返回值
+    * Test statistic：代表检验统计量
+    * p-value：代表p值检验的概率
+    * Lags used：使用的滞后k，autolag=AIC时会自动选择滞后
+    * Number of Observations Used：样本数量
+    * Critical Value(5%) : 显著性水平为5%的临界值。
+
+    # 判断标准
+    * 假设是存在单位根，即不平稳；
+    * 显著性水平，1%：严格拒绝原假设；5%：拒绝原假设，10%类推。
+    * 看P值和显著性水平a的大小，p值越小，小于显著性水平的话，就拒绝原假设，认为序列是平稳的；大于的话，不能拒绝，认为是不平稳的
+    * 看检验统计量和临界值，检验统计量小于临界值的话，就拒绝原假设，认为序列是平稳的；大于的话，不能拒绝，认为是不平稳的
+    '''
+    # 平稳性检测
+    def stationarity_test(self, timeseries, verbose=False):
+        from statsmodels.tsa.stattools import adfuller as ADF
+        diff = 0
+        adf = ADF(timeseries)
+        while adf[1] > 0.05:
+            diff = diff + 1
+            adf = ADF(timeseries.diff(diff).dropna())
+        if verbose:
+            print(u'原始序列经过%s阶差分后归于平稳，p值为%f' % (diff, adf[1]))
+        return diff
+
+    '''
+    acorr_ljungbox(x, lags=None, boxpierce=False)函数检验无自相关
+    lags为延迟期数，如果为整数，则是包含在内的延迟期数，如果是一个列表或数组，那么所有时滞都包含在列表中最大的时滞中
+    boxpierce为True时表示除开返回LB统计量还会返回Box和Pierce的Q统计量
+    返回值：
+    lbvalue:测试的统计量
+    pvalue:基于卡方分布的p统计量
+    bpvalue:((optionsal), float or array) – test statistic for Box-Pierce test
+    bppvalue:((optional), float or array) – p-value based for Box-Pierce test on chi-square distribution
+    '''
+    # 白噪声检测
+    def whitenoise_test(self, timeseries, diff=1, verbose=False):
+        ret = False
+        from statsmodels.stats.diagnostic import acorr_ljungbox
+        [[lb], [p]] = acorr_ljungbox(timeseries, lags=1)
+        if p < 0.05:
+            if verbose:
+                print('原始序列为非白噪声序列，对应的p值为：%s' % p)
+            pass
+        else:
+            ret = True
+            if verbose:
+                print('原始该序列为白噪声序列，对应的p值为：%s' % p)
+            pass
+
+        # 如果差分阶数为0，则返回结果
+        if diff < 1:
+            return ret
+
+        [[lb], [p]] = acorr_ljungbox(timeseries.diff(diff).dropna(), lags=1)
+        if p < 0.05:
+            if verbose:
+                print('%d阶差分序列为非白噪声序列，对应的p值为：%s' % (diff, p))
+            pass
+        else:
+            ret = True
+            if verbose:
+                print('%d阶差分序列为白噪声序列，对应的p值为：%s' % (diff, p))
+
+        return ret
+
+    # 自相关系数与偏自相关系数
+    def plot_acfandpacf(self, timeseries, diff=0, lags=100):
+        from statsmodels.graphics.tsaplots import plot_acf
+        from statsmodels.graphics.tsaplots import plot_pacf
+        if diff > 0:
+            timeseries = timeseries.diff(diff).dropna()
+        fig = plt.figure(figsize=(40, 10))
+        ax1 = fig.add_subplot(211)
+        plot_acf(timeseries, lags=lags, ax=ax1)
+        ax2 = fig.add_subplot(212)
+        plot_pacf(timeseries, lags=lags, ax=ax2)
+        plt.show()
+
+    def statistic(self, filePath, leaves, type, length):
+        stat = {}
+        stat['leaf'] = leaves.tolist()
+        stat['diff'] = []
+        stat['isWhiteNoise'] = []
+        stat['max'] = []
+        stat['min'] = []
+        stat['mean'] = []
+        stat['std'] = []
+
+        for leaf in tqdm(leaves.tolist()):
+            l = '&'.join(leaf)
+            ts = pd.read_csv(filePath + '/%s.csv' % l)[type]
+            # 获取统计信息
+            stat['max'].append(np.max(ts))
+            stat['min'].append(np.min(ts))
+            stat['mean'].append(np.mean(ts))
+            stat['std'].append(np.std(ts))
+
+            # 平稳性检测
+            d = self.stationarity_test(ts[:length])
+            stat['diff'].append(d)
+
+            # 白噪声检验
+            isWN = self.whitenoise_test(ts[:length], d)
+
+            # 输出不是高斯白噪声的叶子元素
+            if not isWN:
+                stat['isWhiteNoise'].append(0)
+            else:
+                stat['isWhiteNoise'].append(1)
+
+        stat = pd.DataFrame(stat)
+        return stat
+
+"""
+predict
+"""
+class ARIMAPredict():
+    def __init__(self, leaf):
+        self.leaf = leaf
+        self.model_result = None
+
+    # ARIMA训练
+    def train(self, ts, d, p=None, q=None, select=False):
+        timeseries = list(ts / 1.0)
+        if select:
+            # 在statsmodels包里还有更直接的函数：
+            import statsmodels.tsa.stattools as st
+            order = st.arma_order_select_ic(timeseries, max_ar=5, max_ma=5, ic=['aic', 'bic', 'hqic'])
+            p, q = order.bic_min_order
+            print(order.bic_min_order, p, q)
+
+        # 如果不自动选择p、q，则必须设置p和q，否则报错
+        if not select and (pd.isnull(p) or pd.isnull(q)):
+            raise ValueError("The p or q must be configured!")
+
+        order = (p, d, q)
+        from statsmodels.tsa.arima_model import ARIMA
+        model = ARIMA(timeseries, order=order)
+        self.model_result = model.fit(disp=-1)
+        return order
+
+    # ARIMA预测
+    def predict(self, ts, number=None, start=None, end=None):
+        self.model_result.model.endog = np.asarray(ts)
+        return self.model_result.predict(start, end)
+
+    # 保存模型
+    def save(self, path):
+        if not os.path.isdir(path):
+            os.makedirs(path)
+        joblib.dump(self.model_result, path + '/model_' + self.leaf + '.pkl')
+
+    # 加载模型
+    def load(self, path):
+        self.model_result = joblib.load(path + '/model_' + self.leaf + '.pkl')
+
+    # 绘预测结果图
+    def plot_results(self, ts_true, ts_pred):
+        plt.figure(figsize=(40, 10))
+        plt.plot(ts_true, label="true", color='green')
+        plt.plot(pd.Series(ts_pred, index=ts_true.index), label="predicted")
+        plt.legend()
+        plt.show()
+
+
+"""
+评估
+"""
+import matplotlib.pyplot as plt
+class Evalutaion:
+    # 评估模型
+    def evaluate(self, y_test, y_pred, score='', verbose=False):
+        # 评估模型
+        from sklearn import metrics
+        mse = metrics.mean_squared_error(y_test, y_pred)
+        rmse = np.sqrt(metrics.mean_squared_error(y_test, y_pred))
+        mae = metrics.mean_absolute_error(y_test, y_pred)
+        mdae = metrics.median_absolute_error(y_test, y_pred)
+        acc = metrics.explained_variance_score(y_test,
+                                               y_pred)  # 1 - np.sum(np.abs(np.array(((y_test - y_pred) / y_test))) / len(y_test))
+        r2 = metrics.r2_score(y_test, y_pred)
+
+        score_ret = {}
+        score_ret['MSE'] = mse
+        score_ret['RMSE'] = rmse
+        score_ret['MAE'] = mae
+        score_ret['MDAE'] = mae
+        score_ret['ACC'] = acc
+        score_ret['R2'] = r2
+
+        if score == '':
+            if verbose:
+                # 用scikit-learn计算MSE
+                print("MSE:", mse)
+                # 用scikit-learn计算RMSE
+                print("RMSE:", mse)
+                # 用scikit-learn计算MAE
+                print("MAE:", mae)
+                # 用scikit-learn计算MDAE
+                print("MDAE:", mdae)
+                # 正常精确度
+                print("ACC:", acc)
+                # R2
+                print("R2:", r2)
+            return score_ret
+        else:
+            if verbose:
+                print(score, score_ret[score])
+            return {score: score_ret[score]}
+
+    # 可视化模型结果
+    def visualize(self, y_test, y_pred):
+        fig, ax = plt.subplots()
+        ax.scatter(y_test, y_pred)
+        ax.plot([np.array(y_test).min(), np.array(y_test).max()], [np.array(y_pred).min(), np.array(y_pred).max()],
+                'k--', lw=4)
+        ax.set_xlabel('Measured')
+        ax.set_ylabel('Predicted')
+        plt.show()

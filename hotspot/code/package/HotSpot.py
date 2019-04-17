@@ -408,11 +408,11 @@ class HotSpot():
 
             # Output some information about the tree - can be omitted
             if (verbose):
-                pass
                 # print(rootnode.TreeToString(0))
-            else:
                 pass
+            else:
                 # print(rootnode.ChildrenToString())
+                pass
 
             if len(state.get_unvisited_elements()) == 0:
                 # print('all elements visited')
@@ -435,15 +435,25 @@ if __name__ == "__main__":
     #                          ('a2', 'b2'): [15, 25],
     #                          ('a2', 'b3'): [20, 20],
     #                          })
+
+    # kPoint = KPIPoint(attr_map,
+    #                   1000, {('a1', 'b1'): [50000, 0.1],
+    #                          ('a1', 'b2'): [100000, 0.2],
+    #                          ('a1', 'b3'): [5050, 5000],
+    #                          # ('a2', 'b1'): [7, 10],
+    #                          # ('a2', 'b2'): [15, 25],
+    #                          ('a2', 'b3'): [1040, 1000],
+    #                          })
+
     kPoint = KPIPoint(attr_map,
-                      1000, {('a1', 'b1'): [50000, 0.1],
-                             ('a1', 'b2'): [100000, 0.2],
-                             ('a1', 'b3'): [5050, 5000],
-                             # ('a2', 'b1'): [7, 10],
-                             # ('a2', 'b2'): [15, 25],
-                             ('a2', 'b3'): [1040, 1000],
+                      1000, {('a1', 'b1'): [5, 20],
+                             ('a1', 'b2'): [15, 15],
+                             ('a1', 'b3'): [10, 10],
+                             ('a2', 'b1'): [10, 10],
+                             ('a2', 'b2'): [13, 25],
+                             ('a2', 'b3'): [20, 20],
                              })
-    hotSpot = HotSpot(kPoint, 2, 0.99, 0.01, 100)
+    hotSpot = HotSpot(kPoint, 2, 0.99, 0.01, 10)
     rootCauseSet = hotSpot.find_root_cause_set()
     print(rootCauseSet)
 
