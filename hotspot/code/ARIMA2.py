@@ -38,16 +38,15 @@ def arima_train(leaf, ts1, ts2, d):
     arima.plot_results(ts2[d:], predict)
     return predict
 
-
-if __name__ == "__main__":
+def main():
     # 加载前两周叶子元素统计信息
     leafFirst2Week = pd.read_csv('../result/leaves/leafCountTrainStatistic.csv')
-    # leafFirst2Week = leafFirst2Week[leafFirst2Week['diff'] == 1]
+    leafFirst2Week = leafFirst2Week[leafFirst2Week['diff'] == 1]
     leafFirst2Week['leaf'] = leafFirst2Week['leaf'].apply(str2tuple)
     leaves = leafFirst2Week['leaf'].tolist()
 
     fileFormat = '../result/leaves/leaves_KPISet_smothing/%s.csv'
-    train_colName = 'smoothed'
+    train_colName = 'true'
     suffix = '_smooth' if train_colName == 'smoothed' else ''
 
     freq_col = 'count'
@@ -108,11 +107,10 @@ if __name__ == "__main__":
     success_log = pd.DataFrame(success_log, columns=['leaf'])
     success_log.to_csv(success_path, index=False)
 
-
     # 评估
     mae_sum = 0
     for leaf in tqdm(leaves):
-        ts = pd.read_csv('leaf.csv') #fileFormat % leaf
+        ts = pd.read_csv(fileFormat % leaf)
         ts_true = ts[train_colName][trainNum + diff:]
         ts_predict = ts[predict_colName][trainNum + diff:]
         eva = Evalutaion()
@@ -121,3 +119,6 @@ if __name__ == "__main__":
     print(mae_sum)
     print(len(leafFirst2Week))
     print('mae: %f' % (mae_sum / len(leafFirst2Week)))
+
+if __name__ == "__main__":
+    main()
